@@ -5,6 +5,9 @@ import json
 import urllib
 from lxml import etree
 from multiprocessing.dummy import Pool
+import sys
+reload(sys)
+sys.setdefaultencoding("utf-8")
 
 class Crawl:
 	def __init__(self):
@@ -41,17 +44,63 @@ class Crawl:
 		ajaxhtml = requests.post(urlinput, data=data, headers=headers)   #ajax异步加载，返回str（形式上是dict）
 		dict_type = json.loads(ajaxhtml.content)              #变换json格式，结果为dict类型
 		list = dict_type['msg']                  #获得源代码的list，10个数据，每个数据为一个答主的源代码
-		html=''.join(list)                  #将list中的源代码合并
-		return html
+		return list    #html
 		
 	def getImage(self,html):
+		if type(html) is not 'str':
+			html=''.join(html)                   #非第一页返回是list
 		list=re.findall('data-original="(.*?)"', html)
 		for i in range(0, len(list) - 1, 2):
 			print list[i]
-			#filename = list[i].split('/')[-1]
-			#urllib.urlretrieve(list[i], 'loads/%s' % filename)
-		
+			# filename = list[i].split('/')[-1]
+			# urllib.urlretrieve(list[i], 'loads/%s' % filename)
 
+	def getInfo(self,html):
+		infoList=[]
+		# if type(html) is not 'list':
+		# 	pass
+		# 	return
+		for i in range(len(html)):
+			info={}
+			object=re.search(r'<span class="name">(.*?)</span>',html[i],re.S)
+			if not object:
+				info['name']=re.search(r'target="_blank" href="/people/.*?>(.*?)</a></span>',html[i],re.S).group(1)
+				signature=re.search(r'span title="(.*?)" class="bio"',html[i],re.S)
+				if signature:
+					info['signature']=signature.group(1)
+				else:
+					info['signature']='No infomation'
+				info['homepage']='https://www.zhihu.com'+re.search(r'target="_blank" href="(/people/.*?)"',html[i],re.S).group(1)
+			else:
+				info['name'] =object.group(1)
+				info['signature']='No infomation'
+				info['homepage']='No infomation'
+
+			approval=re.search(r'<span class="js-voteCount">(.*?)</span>',html[i],re.S)
+			if approval:
+				info['approval']=approval.group(1)+' approvals'
+			else:
+				info['approval']='0 approval'
+
+			comments=re.search(r'<i class="z-icon-comment"></i>(.*?)</a>',html[i],re.S)
+			if comments:
+				info['comments']=comments.group(1)+' comments'
+			else:
+				info['comments']='0 comments'
+
+			print info
+			infoList.append(info)
+		return infoList
+
+	def saveInfo(self,infoList):
+		f = open('info.txt', 'a')
+		for each in infoList:
+			f.writelines('name: '+each['name']+'\n')
+			f.writelines('homepage: '+each['homepage']+'\n')
+			f.writelines('signature: '+each['signature']+'\n')
+			f.writelines('approval: '+each['approval']+'\n')
+			f.writelines('comments: '+each['comments']+'\n\n')
+		f.close()
 
 
 if __name__ == '__main__':
@@ -59,12 +108,17 @@ if __name__ == '__main__':
 	url_post = 'https://www.zhihu.com/node/QuestionAnswerListV2'
 	cookie = {
 		"Cookie": 'q_c1=65cd4da2853d4b53b932853b28e3b168|1483519932000|1483519932000; _xsrf=85f7e963dd2119f4b8c73df4e132422a; d_c0="AGDCBho_GguPTnNhvD21Ev6BbUuIfgufaGg=|1483519933"; _zap=823590fe-9fa0-40a2-889a-37d4a7d520fa; r_cap_id="YzliYTU1YzcyZjMwNGEzYzkyNjE4OWVmMzRhNmEzNWI=|1483521508|2a78a41624797f1b4996c5aea3eb2d119616c34b"; cap_id="NjliN2RmMzQzNWNjNDgyZGI3NTJmMzRlZjY5NWJjNGU=|1483529874|db0891f76f7c736adcefc983ce7e72fa1f8d2579"; l_cap_id="YmJhZDM2N2FjY2I3NDc0OWI4MjI1ZTk0OTRhZGZlMjY=|1483529874|cff65c288b1f4edacbd2348016c8a6e7568217eb"; login="NmZjNzY3ZjliMzFkNGY2ODg3YjZiNDA2Nzg4YmExOWY=|1483529874|13f7492442b7f3577d08751eff5294d93ef043c6"; n_c=1; z_c0=Mi4wQUNBQWN3NUZLUW9BWU1JR0dqOGFDeGNBQUFCaEFsVk5rbXVVV0FDc1VoWlBYWmhoMUZ0XzB0MTEyMGZ2dEQ2bTJn|1483529912|c3ca63703101356f57eda7325e29c81c761a75a2; __utma=51854390.2127096924.1483519936.1483519942.1483529919.3; __utmb=51854390.0.10.1483529919; __utmc=51854390; __utmz=51854390.1483529919.3.3.utmcsr=zhihu.com|utmccn=(referral)|utmcmd=referral|utmcct=/; __utmv=51854390.100--|2=registration_date=20160701=1^3=entry_date=20160701=1'}
+
 	spider = Crawl()
 	dataLi = spider.getDataInPost()
-	for i in range(len(dataLi)):
+	#循环遍历所有源代码
+	for i in range(35):  #len(dataLi)):
 		print '正在处理第%d页数据'%(i+1)
 		if dataLi[i] is None:
-			html = spider.getHTML(url, dataLi[i])
+			continue
+			#html = spider.getHTML(url, dataLi[i])
 		else:
 			html = spider.getHTML(url_post, dataLi[i])
 		spider.getImage(html)
+		infoList=spider.getInfo(html)
+		spider.saveInfo(infoList)
