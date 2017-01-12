@@ -57,9 +57,6 @@ class Crawl:
 
 	def getInfo(self,html):
 		infoList=[]
-		# if type(html) is not 'list':
-		# 	pass
-		# 	return
 		for i in range(len(html)):
 			info={}
 			object=re.search(r'<span class="name">(.*?)</span>',html[i],re.S)
@@ -115,10 +112,9 @@ if __name__ == '__main__':
 	for i in range(35):  #len(dataLi)):
 		print '正在处理第%d页数据'%(i+1)
 		if dataLi[i] is None:
-			continue
-			#html = spider.getHTML(url, dataLi[i])
+			html = spider.getHTML(url, dataLi[i])
 		else:
 			html = spider.getHTML(url_post, dataLi[i])
+			infoList = spider.getInfo(html)
+			spider.saveInfo(infoList)
 		spider.getImage(html)
-		infoList=spider.getInfo(html)
-		spider.saveInfo(infoList)
